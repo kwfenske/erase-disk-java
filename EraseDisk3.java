@@ -109,8 +109,7 @@
       java  EraseDisk3  -?
 
   The command line has more options than are visible in the graphical
-  interface.  An option such as -u16 or -u18 is recommended because the default
-  Java font is too small.
+  interface.  An option such as -u16 or -u18 is recommended for the font size.
 
   Restrictions and Limitations
   ----------------------------
@@ -415,9 +414,10 @@ public class EraseDisk3
   {
     ActionListener action;        // our shared action listener
     boolean borderFlag;           // true if main window has borders, controls
-    Font buttonFont;              // font for buttons, labels, status, etc
+    Font commonFont;              // font for buttons, labels, status, etc
+    String commonFontName;        // preferred font name for buttons, etc
+    int commonFontSize;           // normal font size or chosen by user
     Border emptyBorder;           // remove borders around text areas
-    String fontName;              // our preferred font name for everything
     int gridBarGap, gridBarWidth; // pixel sizes for columns in bar graph
     int i;                        // index variable
     boolean maxDataRateFlag;      // true if we show maximum observed data rate
@@ -429,10 +429,10 @@ public class EraseDisk3
     /* Initialize variables used by both console and GUI applications. */
 
     borderFlag = true;            // by default, window has borders, controls
-    buttonFont = null;            // by default, don't use customized font
     cancelFlag = false;           // don't cancel unless user complains
+    commonFontName = SYSTEM_FONT; // default to normal font on local system
+    commonFontSize = 18;          // preferred font size of buttons, labels
     debugFlag = false;            // by default, don't show debug information
-    fontName = null; // "Verdana"; // preferred font name or null for default
     gridBarGap = gridBarWidth = -1; // no pixel sizes for columns in bar graph
     mainFrame = null;             // during setup, there is no GUI window
     maxDataRateFlag = false;      // by default, don't show maximum data rate
@@ -445,17 +445,6 @@ public class EraseDisk3
     windowLeft = DEFAULT_LEFT;
     windowTop = DEFAULT_TOP;
     windowWidth = DEFAULT_WIDTH;
-
-    /* If our preferred font is not available, then use a pre-defined system
-    font.  Comment out the <buttonFont> line below to use whatever the current
-    Java run-time has for each of the various GUI elements. */
-
-    if ((fontName == null) || (fontName.equals((new Font(fontName, Font.PLAIN,
-      16)).getFamily()) == false)) // create font, read back created name
-    {
-      fontName = SYSTEM_FONT;     // must replace with standard system font
-    }
-    buttonFont = new Font(fontName, Font.PLAIN, 18); // for buttons, text
 
     /* Initialize number formatting styles. */
 
@@ -543,29 +532,27 @@ public class EraseDisk3
       else if (word.startsWith("-u") || (mswinFlag && word.startsWith("/u")))
       {
         /* This option is followed by a font point size that will be used for
-        buttons, dialogs, labels, etc. */
+        GUI buttons, dialogs, labels, etc. */
 
-        int size = -1;            // default value for font point size
-        try                       // try to parse remainder as unsigned integer
+        try                       // try to parse remainder as an integer
         {
-          size = Integer.parseInt(word.substring(2));
+          commonFontSize = Integer.parseInt(word.substring(2));
         }
         catch (NumberFormatException nfe) // if not a number or bad syntax
         {
-          size = -1;              // set result to an illegal value
+          commonFontSize = -1;    // set result to an illegal value
         }
-        if ((size < 10) || (size > 99))
+        if ((commonFontSize < 10) || (commonFontSize > 99))
         {
           System.err.println("Dialog font size must be from 10 to 99: "
             + args[i]);           // notify user of our arbitrary limits
           showHelp();             // show help summary
           System.exit(EXIT_FAILURE); // exit application after printing help
         }
-        buttonFont = new Font(fontName, Font.PLAIN, size); // for big sizes
-//      buttonFont = new Font(fontName, Font.BOLD, size); // for small sizes
-        if (gridBarGap < 0) gridBarGap = (int) Math.round(size * 0.17);
-                                  // default pixel size if not already set
-        if (gridBarWidth < 0) gridBarWidth = (int) Math.round(size * 0.56);
+        if (gridBarGap < 0) gridBarGap = (int) Math.round(commonFontSize
+          * 0.17);                // default pixel size if not already set
+        if (gridBarWidth < 0) gridBarWidth = (int) Math.round(commonFontSize
+          * 0.56);
       }
 
       else if (word.startsWith("-w") || (mswinFlag && word.startsWith("/w")))
@@ -608,24 +595,10 @@ public class EraseDisk3
       }
     }
 
-    /* Open the graphical user interface (GUI).  The standard Java style is the
-    most reliable, but you can switch to something closer to the local system,
-    if you want. */
-
-//  try
-//  {
-//    UIManager.setLookAndFeel(
-//      UIManager.getCrossPlatformLookAndFeelClassName());
-////    UIManager.getSystemLookAndFeelClassName());
-//  }
-//  catch (Exception ulafe)
-//  {
-//    System.err.println("Unsupported Java look-and-feel: " + ulafe);
-//  }
-
     /* Initialize shared graphical objects. */
 
     action = new EraseDisk3User(); // create our shared action listener
+    commonFont = new Font(commonFontName, Font.PLAIN, commonFontSize);
     emptyBorder = BorderFactory.createEmptyBorder(); // for removing borders
     fileChooser = new JFileChooser(); // create our shared file chooser
     pauseWaiter = new Integer(0); // wait on this object for "Pause" button
@@ -637,7 +610,7 @@ public class EraseDisk3
     and hence are only numbered (panel261, label354, etc). */
 
     tabbedPane = new JTabbedPane(JTabbedPane.TOP);
-    if (buttonFont != null) tabbedPane.setFont(buttonFont);
+    tabbedPane.setFont(commonFont);
 
     /* The first panel has a general introduction and selects the location of
     a drive folder where temporary files will be created.  This panel could be
@@ -656,7 +629,7 @@ public class EraseDisk3
 
     folderButton = new JButton("Folder...");
     folderButton.addActionListener(action);
-    if (buttonFont != null) folderButton.setFont(buttonFont);
+    folderButton.setFont(commonFont);
     folderButton.setMnemonic(KeyEvent.VK_F);
     folderButton.setToolTipText("Select folder for temporary files.");
     panel230.add(folderButton);
@@ -665,14 +638,15 @@ public class EraseDisk3
     whereFolderText = new JTextField("No folder selected.");
     whereFolderText.setBorder(emptyBorder);
     whereFolderText.setEditable(false); // user can't change this text field
-    if (buttonFont != null) whereFolderText.setFont(buttonFont);
+    whereFolderText.setFont(commonFont);
 //  whereFolderText.setOpaque(false); // transparent background, not white
     panel230.add(whereFolderText);
     panel230.add(Box.createHorizontalStrut(20));
+                                  // no glue needed here: JTextField expands
 
     wherePanelNext = new JButton("Next >");
     wherePanelNext.addActionListener(action);
-    if (buttonFont != null) wherePanelNext.setFont(buttonFont);
+    wherePanelNext.setFont(commonFont);
     wherePanelNext.setMnemonic(KeyEvent.VK_N);
     panel230.add(wherePanelNext);
     panel210.add(panel230, BorderLayout.NORTH);
@@ -680,7 +654,7 @@ public class EraseDisk3
     JTextArea text250 = new JTextArea(10, 20);
                                   // nominal size to avoid scroll bars
     text250.setEditable(false);   // user can't change this text area
-    if (buttonFont != null) text250.setFont(buttonFont);
+    text250.setFont(commonFont);
     text250.setLineWrap(true);    // allow text lines to wrap
     text250.setOpaque(false);     // transparent background, not white
     text250.setText(
@@ -722,7 +696,7 @@ public class EraseDisk3
 
     optionPanelBack = new JButton("< Back");
     optionPanelBack.addActionListener(action);
-    if (buttonFont != null) optionPanelBack.setFont(buttonFont);
+    optionPanelBack.setFont(commonFont);
     optionPanelBack.setMnemonic(KeyEvent.VK_B);
     panel330.add(optionPanelBack);
     panel330.add(Box.createHorizontalStrut(20));
@@ -730,7 +704,7 @@ public class EraseDisk3
 
     optionPanelNext = new JButton("Next >");
     optionPanelNext.addActionListener(action);
-    if (buttonFont != null) optionPanelNext.setFont(buttonFont);
+    optionPanelNext.setFont(commonFont);
     optionPanelNext.setMnemonic(KeyEvent.VK_N);
     panel330.add(optionPanelNext);
     panel320.add(panel330);
@@ -739,7 +713,7 @@ public class EraseDisk3
     JPanel panel340 = new JPanel();
     panel340.setLayout(new BoxLayout(panel340, BoxLayout.X_AXIS));
     JLabel label341 = new JLabel("What type of data do you want to write?");
-    if (buttonFont != null) label341.setFont(buttonFont);
+    label341.setFont(commonFont);
     panel340.add(label341);
     panel340.add(Box.createHorizontalGlue());
     panel320.add(panel340);
@@ -749,7 +723,7 @@ public class EraseDisk3
     panel342.setLayout(new BoxLayout(panel342, BoxLayout.X_AXIS));
     optionCustomWrite = new JCheckBox("custom data pattern (0x69 and 0x96)",
       false);                     // special requests, see startErase() method
-    if (buttonFont != null) optionCustomWrite.setFont(buttonFont);
+    optionCustomWrite.setFont(commonFont);
     panel342.add(optionCustomWrite);
     panel342.add(Box.createHorizontalGlue());
     panel320.add(panel342);
@@ -758,7 +732,7 @@ public class EraseDisk3
     JPanel panel343 = new JPanel();
     panel343.setLayout(new BoxLayout(panel343, BoxLayout.X_AXIS));
     optionOneWrite = new JCheckBox("write all ones (0xFF bytes)", false);
-    if (buttonFont != null) optionOneWrite.setFont(buttonFont);
+    optionOneWrite.setFont(commonFont);
     panel343.add(optionOneWrite);
     panel343.add(Box.createHorizontalGlue());
     panel320.add(panel343);
@@ -768,16 +742,16 @@ public class EraseDisk3
     panel344.setLayout(new BoxLayout(panel344, BoxLayout.X_AXIS));
     optionRandomWrite = new JCheckBox("pseudo-random data and ", true);
     optionRandomWrite.addActionListener(action);
-    if (buttonFont != null) optionRandomWrite.setFont(buttonFont);
+    optionRandomWrite.setFont(commonFont);
     panel344.add(optionRandomWrite);
     optionRandomRead = new JCheckBox("read verify after ", false);
     optionRandomRead.addActionListener(action);
-    if (buttonFont != null) optionRandomRead.setFont(buttonFont);
+    optionRandomRead.setFont(commonFont);
     panel344.add(optionRandomRead);
     optionRandomPrompt = new JCheckBox("prompt", false);
 //  optionRandomPrompt.addActionListener(action);
     optionRandomPrompt.setEnabled(false);
-    if (buttonFont != null) optionRandomPrompt.setFont(buttonFont);
+    optionRandomPrompt.setFont(commonFont);
     panel344.add(optionRandomPrompt);
     panel344.add(Box.createHorizontalGlue());
     panel320.add(panel344);
@@ -786,7 +760,7 @@ public class EraseDisk3
     JPanel panel345 = new JPanel();
     panel345.setLayout(new BoxLayout(panel345, BoxLayout.X_AXIS));
     optionZeroWrite = new JCheckBox("write all zeros (0x00 bytes)", false);
-    if (buttonFont != null) optionZeroWrite.setFont(buttonFont);
+    optionZeroWrite.setFont(commonFont);
     panel345.add(optionZeroWrite);
     panel345.add(Box.createHorizontalGlue());
     panel320.add(panel345);
@@ -795,11 +769,11 @@ public class EraseDisk3
     JPanel panel350 = new JPanel();
     panel350.setLayout(new BoxLayout(panel350, BoxLayout.X_AXIS));
     JLabel label351 = new JLabel("Maximum number of temporary files is ");
-    if (buttonFont != null) label351.setFont(buttonFont);
+    label351.setFont(commonFont);
     panel350.add(label351);
     optionFileCount = new JTextField(formatComma.format(FILE_COUNT_DEFAULT));
     optionFileCount.setColumns(5);
-    if (buttonFont != null) optionFileCount.setFont(buttonFont);
+    optionFileCount.setFont(commonFont);
     optionFileCount.setHorizontalAlignment(JTextField.CENTER);
     optionFileCount.setMargin(new Insets(0, 2, 1, 2));
     optionFileCount.setMaximumSize(optionFileCount.getPreferredSize());
@@ -811,7 +785,7 @@ public class EraseDisk3
     JLabel label352 = new JLabel(" from "
       + formatComma.format(FILE_COUNT_LOWER) + " to "
       + formatComma.format(FILE_COUNT_UPPER) + ".");
-    if (buttonFont != null) label352.setFont(buttonFont);
+    label352.setFont(commonFont);
     panel350.add(label352);
     panel350.add(Box.createHorizontalGlue());
     panel320.add(panel350);
@@ -820,11 +794,11 @@ public class EraseDisk3
     JPanel panel360 = new JPanel();
     panel360.setLayout(new BoxLayout(panel360, BoxLayout.X_AXIS));
     JLabel label361 = new JLabel("Maximum size of each temporary file is ");
-    if (buttonFont != null) label361.setFont(buttonFont);
+    label361.setFont(commonFont);
     panel360.add(label361);
     optionFileSize = new JTextField(formatByteSize(FILE_SIZE_DEFAULT));
     optionFileSize.setColumns(6);
-    if (buttonFont != null) optionFileSize.setFont(buttonFont);
+    optionFileSize.setFont(commonFont);
     optionFileSize.setHorizontalAlignment(JTextField.CENTER);
     optionFileSize.setMargin(new Insets(0, 2, 1, 2));
     optionFileSize.setMaximumSize(optionFileSize.getPreferredSize());
@@ -833,7 +807,7 @@ public class EraseDisk3
     panel360.add(optionFileSize);
     JLabel label362 = new JLabel(" from " + formatByteSize(FILE_SIZE_LOWER)
       + " to " + formatByteSize(FILE_SIZE_UPPER) + ".");
-    if (buttonFont != null) label362.setFont(buttonFont);
+    label362.setFont(commonFont);
     panel360.add(label362);
     panel360.add(Box.createHorizontalGlue());
     panel320.add(panel360);
@@ -842,11 +816,11 @@ public class EraseDisk3
     JPanel panel370 = new JPanel();
     panel370.setLayout(new BoxLayout(panel370, BoxLayout.X_AXIS));
     JLabel label371 = new JLabel("Maximum total size for all files is ");
-    if (buttonFont != null) label371.setFont(buttonFont);
+    label371.setFont(commonFont);
     panel370.add(label371);
     optionTotalSize = new JTextField(formatByteSize(PASS_SIZE_DEFAULT));
     optionTotalSize.setColumns(7);
-    if (buttonFont != null) optionTotalSize.setFont(buttonFont);
+    optionTotalSize.setFont(commonFont);
     optionTotalSize.setHorizontalAlignment(JTextField.CENTER);
     optionTotalSize.setMargin(new Insets(0, 2, 1, 2));
     optionTotalSize.setMaximumSize(optionTotalSize.getPreferredSize());
@@ -855,7 +829,7 @@ public class EraseDisk3
     panel370.add(optionTotalSize);
     JLabel label372 = new JLabel(" from " + formatByteSize(PASS_SIZE_LOWER)
       + " to " + formatByteSize(PASS_SIZE_UPPER) + ".");
-    if (buttonFont != null) label372.setFont(buttonFont);
+    label372.setFont(commonFont);
     panel370.add(label372);
     panel370.add(Box.createHorizontalGlue());
     panel320.add(panel370);
@@ -865,7 +839,7 @@ public class EraseDisk3
     JTextArea text380 = new JTextArea(3, 48);
                                   // actual size affects "packed" layout
     text380.setEditable(false);   // user can't change this text area
-    if (buttonFont != null) text380.setFont(buttonFont);
+    text380.setFont(commonFont);
     text380.setLineWrap(true);    // allow text lines to wrap
     text380.setOpaque(false);     // transparent background, not white
     text380.setText("File sizes that are not a multiple of "
@@ -897,7 +871,7 @@ public class EraseDisk3
 
     erasePanelBack = new JButton("< Back");
     erasePanelBack.addActionListener(action);
-    if (buttonFont != null) erasePanelBack.setFont(buttonFont);
+    erasePanelBack.setFont(commonFont);
     erasePanelBack.setMnemonic(KeyEvent.VK_B);
     panel530.add(erasePanelBack);
     panel530.add(Box.createHorizontalStrut(20));
@@ -905,7 +879,7 @@ public class EraseDisk3
 
     startButton = new JButton("Start");
     startButton.addActionListener(action);
-    if (buttonFont != null) startButton.setFont(buttonFont);
+    startButton.setFont(commonFont);
     startButton.setMnemonic(KeyEvent.VK_S);
     startButton.setToolTipText("Write, write, write, and maybe read.");
     panel530.add(startButton);
@@ -914,7 +888,7 @@ public class EraseDisk3
     pauseButton = new JButton(PAUSE_BUTTON_TEXT);
     pauseButton.addActionListener(action);
     pauseButton.setEnabled(false);
-    if (buttonFont != null) pauseButton.setFont(buttonFont);
+    pauseButton.setFont(commonFont);
     pauseButton.setMnemonic(PAUSE_BUTTON_MNEMONIC);
     pauseButton.setToolTipText("Wait to resume later.");
     panel530.add(pauseButton);
@@ -923,7 +897,7 @@ public class EraseDisk3
     cancelButton = new JButton("Cancel");
     cancelButton.addActionListener(action);
     cancelButton.setEnabled(false);
-    if (buttonFont != null) cancelButton.setFont(buttonFont);
+    cancelButton.setFont(commonFont);
     cancelButton.setMnemonic(KeyEvent.VK_C);
     cancelButton.setToolTipText("Stop writing, stop everything.");
     panel530.add(cancelButton);
@@ -932,7 +906,7 @@ public class EraseDisk3
 
     erasePanelNext = new JButton("Next >");
     erasePanelNext.addActionListener(action);
-    if (buttonFont != null) erasePanelNext.setFont(buttonFont);
+    erasePanelNext.setFont(commonFont);
     erasePanelNext.setMnemonic(KeyEvent.VK_N);
     panel530.add(erasePanelNext);
     panel520.add(panel530);
@@ -941,7 +915,7 @@ public class EraseDisk3
     erasePanelTitle = new JTextField("Write and maybe read data...");
     erasePanelTitle.setBorder(emptyBorder);
     erasePanelTitle.setEditable(false); // user can't change this text field
-    if (buttonFont != null) erasePanelTitle.setFont(buttonFont);
+    erasePanelTitle.setFont(commonFont);
 //  erasePanelTitle.setOpaque(false); // transparent background, not white
     panel520.add(erasePanelTitle);
     panel520.add(Box.createVerticalStrut(10));
@@ -949,7 +923,7 @@ public class EraseDisk3
     erasePanelFileAction = new JTextField(EMPTY_STATUS);
     erasePanelFileAction.setBorder(emptyBorder);
     erasePanelFileAction.setEditable(false);
-    if (buttonFont != null) erasePanelFileAction.setFont(buttonFont);
+    erasePanelFileAction.setFont(commonFont);
 //  erasePanelFileAction.setOpaque(false);
     panel520.add(erasePanelFileAction);
     panel520.add(Box.createVerticalStrut(10));
@@ -957,7 +931,7 @@ public class EraseDisk3
     erasePanelFileDone = new JTextField(EMPTY_STATUS);
     erasePanelFileDone.setBorder(emptyBorder);
     erasePanelFileDone.setEditable(false);
-    if (buttonFont != null) erasePanelFileDone.setFont(buttonFont);
+    erasePanelFileDone.setFont(commonFont);
 //  erasePanelFileDone.setOpaque(false);
     panel520.add(erasePanelFileDone);
     panel520.add(Box.createVerticalStrut(9));
@@ -966,7 +940,7 @@ public class EraseDisk3
     erasePanelFileBar.setBorder(emptyBorder);
     erasePanelFileBar.setBorderPainted(false);
                                   // remove drop shadow on empty border
-    if (buttonFont != null) erasePanelFileBar.setFont(buttonFont);
+    erasePanelFileBar.setFont(commonFont);
     erasePanelFileBar.setString(EMPTY_STATUS);
     erasePanelFileBar.setStringPainted(true);
     erasePanelFileBar.setValue(0);
@@ -976,7 +950,7 @@ public class EraseDisk3
     erasePanelPassTime = new JTextField(EMPTY_STATUS);
     erasePanelPassTime.setBorder(emptyBorder);
     erasePanelPassTime.setEditable(false);
-    if (buttonFont != null) erasePanelPassTime.setFont(buttonFont);
+    erasePanelPassTime.setFont(commonFont);
 //  erasePanelPassTime.setOpaque(false);
     panel520.add(erasePanelPassTime);
     panel520.add(Box.createVerticalStrut(10));
@@ -984,7 +958,7 @@ public class EraseDisk3
     erasePanelPassDone = new JTextField(EMPTY_STATUS);
     erasePanelPassDone.setBorder(emptyBorder);
     erasePanelPassDone.setEditable(false);
-    if (buttonFont != null) erasePanelPassDone.setFont(buttonFont);
+    erasePanelPassDone.setFont(commonFont);
 //  erasePanelPassDone.setOpaque(false);
     panel520.add(erasePanelPassDone);
     panel520.add(Box.createVerticalStrut(9));
@@ -992,7 +966,7 @@ public class EraseDisk3
     erasePanelPassBar = new JProgressBar(0, 100);
     erasePanelPassBar.setBorder(emptyBorder);
     erasePanelPassBar.setBorderPainted(false);
-    if (buttonFont != null) erasePanelPassBar.setFont(buttonFont);
+    erasePanelPassBar.setFont(commonFont);
     erasePanelPassBar.setString(EMPTY_STATUS);
     erasePanelPassBar.setStringPainted(true);
     erasePanelPassBar.setValue(0);
@@ -1002,7 +976,7 @@ public class EraseDisk3
     erasePanelTotalTime = new JTextField(EMPTY_STATUS);
     erasePanelTotalTime.setBorder(emptyBorder);
     erasePanelTotalTime.setEditable(false);
-    if (buttonFont != null) erasePanelTotalTime.setFont(buttonFont);
+    erasePanelTotalTime.setFont(commonFont);
 //  erasePanelTotalTime.setOpaque(false);
     panel520.add(erasePanelTotalTime);
     panel520.add(Box.createVerticalStrut(maxDataRateFlag ? 10 : 20));
@@ -1014,7 +988,7 @@ public class EraseDisk3
     erasePanelGridScale = new JLabel(EMPTY_STATUS);
     erasePanelGridScale.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0,
       erasePanelGrid.barColor));  // mark top of grid with drawing color
-    if (buttonFont != null) erasePanelGridScale.setFont(buttonFont);
+    erasePanelGridScale.setFont(commonFont);
     panel550.add(Box.createHorizontalGlue()); // expand space on left
     panel550.add(erasePanelGridScale);
 //  panel550.add(Box.createHorizontalGlue()); // expand space on right
@@ -1041,7 +1015,7 @@ public class EraseDisk3
 
     summaryPanelBack = new JButton("< Back");
     summaryPanelBack.addActionListener(action);
-    if (buttonFont != null) summaryPanelBack.setFont(buttonFont);
+    summaryPanelBack.setFont(commonFont);
     summaryPanelBack.setMnemonic(KeyEvent.VK_B);
     panel730.add(summaryPanelBack);
     panel730.add(Box.createHorizontalStrut(20));
@@ -1049,7 +1023,7 @@ public class EraseDisk3
 
     saveButton = new JButton("Save Output...");
     saveButton.addActionListener(action);
-    if (buttonFont != null) saveButton.setFont(buttonFont);
+    saveButton.setFont(commonFont);
     saveButton.setMnemonic(KeyEvent.VK_O);
     saveButton.setToolTipText("Copy output text (below) to a file.");
     panel730.add(saveButton);
@@ -1058,7 +1032,7 @@ public class EraseDisk3
 
     exitButton = new JButton("Exit");
     exitButton.addActionListener(action);
-    if (buttonFont != null) exitButton.setFont(buttonFont);
+    exitButton.setFont(commonFont);
     exitButton.setMnemonic(KeyEvent.VK_X);
     exitButton.setToolTipText("Close program, no questions asked.");
     panel730.add(exitButton);
@@ -1066,7 +1040,7 @@ public class EraseDisk3
 
     outputText = new JTextArea(10, 20); // nominal size to avoid scroll bars
     outputText.setEditable(false); // user can't change this text area
-    if (buttonFont != null) outputText.setFont(buttonFont);
+    outputText.setFont(commonFont);
     outputText.setLineWrap(false); // do not allow text lines to wrap
     outputText.setOpaque(false);  // transparent background, not white
     outputText.setText("Detailed messages go here.\n");
